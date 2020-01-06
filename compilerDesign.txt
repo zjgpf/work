@@ -1,0 +1,40 @@
+bi3.0 compiler Design:  2019-12-25
+
+ExpCell: Contains expression Tree and all other information (e.g. row, col).
+exp e.g.:
+1.): (10.1*$$.colA+sum(余额表.{(账期>=issue("2019-01",sum(1,3.1)) and 账期 <= 选择账期) and ((科目编码 = $$.colB or 科目编码 = 1001*) and 科目编码 != 10012 ) and (本期借>=0)}.本期借
+    , 10, $$.colD, sum(1,2)))/-(sum($10.colC: $20.colC))
+2.): 末级科目余额表.{  科目编码 != 变动费用末级科目余额表.{主键=*}.科目编码  }.主键
+3.): 余额表.{(账期 in [当前账期, 选择账期, $$.colA, “2019-01”]) and (note=“”)].本期贷
+
+Lexical elements:
+    keywordAll: ‘and’ | ‘or’ | ‘in’ | ‘true’ | ‘false’ | xor | null | not 
+    symbolAll: ‘{‘ | ‘}’ | ‘(‘ | ‘)’ | ‘$’ | ‘.’ | ’,’ | ‘+’ | ‘-‘ | ‘*’ | ‘/‘  | ‘<‘ | ‘>’ | ‘=‘ | ‘:’ | ’[‘ | ’]’ | ‘!’
+
+    op: ‘+’ | ‘-‘ | ‘*’ | ‘/‘ | ‘:’ 
+    unaryOp:  ‘-‘
+    compareOp: ‘<‘ | ‘<=‘ | ‘=‘ | ‘>’ | ‘>=‘ | ‘!=‘ |‘in’|’not in’
+    symbol(residual): { | } | ( | ) | .  | , | [ | ]
+    booleanOp:  and | or | xor
+    unaryBooleanOp: not
+    integerConstant: [0-9]+
+    floatConstant: [0-9]+\.[0-9]+
+    stringConstant: nonSymbol  nonInterger nonFloat nonkeyword or enclosed with “”
+    keywordConstant: true | false | null
+    reference: start with $ and $($|[0-9]+\.[^symbol ]+)
+
+    
+expression structure:
+    expression: term ((op term)*|(booleanOp term)*|(compareOp term)*)
+    term: stringConstant |  keywordConstant | integerConstant | floatConstant | reference | functionCall | selectorCombo | ’(‘ expression ‘)’ | unaryOp term  | unaryBooleanOp term | ‘[‘ paramList ‘]’ 
+    functionCall: functionName ‘(‘ paramList ‘)’
+    paramList:  (parameter (‘,’ paramter)* )?   
+    parameter: refRange|expression
+    refRange: reference:reference
+    selectorCombo: tableName.{  selectors|’’ }(.{ selectors })*.columnName
+    selectors: selectorsTerm (booleanOp selectorsTerm)*
+    selectorsTerm:  selector | ‘(‘ selectors ‘)’
+    selector: columnName compareOp (expression|*stringConstant|stringConstant*)
+    tableName: stringConstant (sysTableName | customTableName)
+    columnName: stringConstant
+    functionName: stringConstant
