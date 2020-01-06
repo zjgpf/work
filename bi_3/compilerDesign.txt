@@ -13,7 +13,7 @@ Lexical elements:
 
     op: ‘+’ | ‘-‘ | ‘*’ | ‘/‘ | ‘:’ 
     unaryOp:  ‘-‘
-    compareOp: ‘<‘ | ‘<=‘ | ‘=‘ | ‘>’ | ‘>=‘ | ‘!=‘ |‘in’|’not in’
+    compareOp: ‘<‘ | ‘<=‘ | ‘=‘ | ‘>’ | ‘>=‘ | ‘!=‘ |‘in’|’not_in’
     symbol(residual): { | } | ( | ) | .  | , | [ | ]
     booleanOp:  and | or | xor
     unaryBooleanOp: not
