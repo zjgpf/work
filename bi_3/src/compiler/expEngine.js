@@ -94,6 +94,34 @@ class expEngine {
         this.check()
     }
 
+    getSelectorNodesPerColumnName(tableName,mandatoryColumn){
+        const ret = []
+        const leafNodes = []   
+        this.tree.traversalLeafs(leafNodes)
+        let i = 0
+        while ( i < leafNodes.length){
+            let node = leafNodes[i]
+            if (node.category != CATEGORY_TABLENAME || node.content != tableName){ 
+                i++
+                continue
+            }
+            //.{
+            i+=3
+            node = leafNodes[i]
+            let lookupTable = false
+            while (node.category != CATEGORY_COLUMNNAME || node.content != mandatoryColumn){
+                i+=1
+                node = leafNodes[i]
+                if (node.type == TYPE_SYMBOLS && node.content == '}') {
+                    lookupTable = true
+                }
+            }
+            if (lookupTable) continue
+            ret.push(node.parent)
+        }
+        return ret
+    }
+
     selectNodeFirstOnly(category, type = '', note = ''){
         const queue = [this.tree]
         while (queue.length > 0){

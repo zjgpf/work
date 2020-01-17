@@ -23,8 +23,8 @@ const {
         TYPE_REFERENCE
 } = require("./lexical")
 
-const INTEGER_PATTERN = /[0-9]+/
-const SINGLE_INTEGER_PATTERN = /[0-9]/
+const INTEGER_PATTERN = /^[0-9]+$/
+const SINGLE_INTEGER_PATTERN = /^[0-9]$/
 
 class Tokenizer {
     

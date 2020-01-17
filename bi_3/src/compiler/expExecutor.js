@@ -2,6 +2,7 @@
 Created by Pengfei Gao on 2020-01-13
 */
 const Function = require('../function/function.js')
+const Util = require('./util.js')
 const {
         OP_PRIORITY,
         TYPE_CONSTANT_ALL,
@@ -38,23 +39,26 @@ const {
 
 class ExpExecutor{
 
-    constructor(expEngine,finalDataRows=[]){
+    constructor(expEngine,rowsOfValue=[],row=-1,col=null){
         this.expEngine = expEngine
-        this.finalDataRows = finalDataRows
+        this.rowsOfValue = rowsOfValue
+        this.row = row
+        this.col = col
         this.curIdx = 0
         this.leafNodes = []
-    }
-
-    exec(){
         const tree = this.expEngine.tree
         tree.traversalLeafs(this.leafNodes)
         this.init()
+    }
+
+    exec(){
         let ret = null
         try{
-            ret =  this.execExp(0,this.leafNodes.length-1)
+            ret =  this.execExp(this.expEngine.tree.children[0])
         } catch(e){
             throw `Execution error occured: ${e}`
         }
+        if (this.row != -1) this.rowsOfValue[this.row][this.col] = ret
         return ret
     }
 
@@ -115,7 +119,7 @@ class ExpExecutor{
         }
         const params = []
         for (const paramNode of paramNodes){
-            const param = this.execExp(paramNode.startIdx, paramNode.endIdx)
+            const param = this.execExp(paramNode)
             params.push(param)
         }
         return params
@@ -136,7 +140,9 @@ class ExpExecutor{
         return ret
     }
 
-    execExp(startIdx,endIdx){
+    execExp(expNode){
+        const startIdx = expNode.startIdx
+        const endIdx = expNode.endIdx
         const leafNodes = this.leafNodes
         const opStack = []
         const queue = []
@@ -160,15 +166,20 @@ class ExpExecutor{
                 this.curIdx+=1
             }
             else if (leafNode.category == CATEGORY_FUNCTIONNAME){
-                const ret = this.execFuncCall(leafNodes[this.curIdx].parent)
-                queue.push([ret,'t_func'])
+                const res = this.execFuncCall(leafNodes[this.curIdx].parent)
+                queue.push([res,'t_func'])
             }
             else if (leafNode.category == CATEGORY_TABLENAME){
 
             }
             else if (leafNode.type == TYPE_REFERENCE){
-                //look ahead ':'
-
+                const rowsOfValue = this.rowsOfValue
+                let [row,col] = Util.refToRowCol(leafNode.content,this.row+1)
+                row-=1
+                const res = rowsOfValue[row][col]
+                queue.push([res,TYPE_REFERENCE])
+                this.curIdx+=1
+                //to do look ahead ':'
             }
             else if (leafNode.type in TYPE_CONSTANT_ALL ){
                 if (leafNode.type == TYPE_INTEGER_CONSTANT || leafNode.type == TYPE_FLOAT_CONSTANT){
