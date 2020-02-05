@@ -4,7 +4,7 @@ Created by Pengfei Gao on 2019-12-04
 
 /**
     keywordAll: ‘and’ | ‘or’ | ‘in’ | ‘true’ | ‘false’ | xor | null | not | not_in
-    symbolAll: ‘{‘ | ‘}’ | ‘(‘ | ‘)’ | ‘$’ | ‘.’ | ’,’ | ‘+’ | ‘-‘ | ‘*’ | ‘/‘  | ‘<‘ | ‘>’ | ‘=‘ | ‘:’ | ’[‘ | ’]’ | ‘!’
+    symbolAll: ‘{‘ | ‘}’ | ‘(‘ | ‘)’ | ‘$’ | ‘.’ | ’,’ | ‘+’ | ‘-‘ | ‘*’ | ‘/‘  | ‘<‘ | ‘>’ | ‘=‘ | ‘:’ | ’[‘ | ’]’ | ‘!’ | '%'
 
     op: ‘+’ | ‘-‘ | ‘*’ | ‘/‘ | ‘:’ 
    *unaryOp:  ‘-‘ (recognize in engine phase)
@@ -17,9 +17,10 @@ Created by Pengfei Gao on 2019-12-04
     stringConstant: nonSymbol  nonInterger nonFloat nonkeyword or enclosed with “”
     keywordConstant: true | false | null
     reference: start with $ and $($|[0-9]+\.[^symbol ]+)
+    reserved variable: start with %
 */
 
-const SYMBOLS_ALL = {"{":true, "}":true, "(":true, ")":true, "$":true,".":true, "[":true, "]":true, ",":true,"+":true , "-":true , "*":true, "/":true, "=":true,":":true, "<":true, ">":true, "!":true}
+const SYMBOLS_ALL = {"{":true, "}":true, "(":true, ")":true, "$":true,".":true, "[":true, "]":true, ",":true,"+":true , "-":true , "*":true, "/":true, "=":true,":":true, "<":true, ">":true, "!":true, "%":true}
 const KEYWORDS_ALL = {"and":true,"or":true,"in":true,"true":true,"false":true,"xor":true,"null":true,"not":true,"not_in":true}
 
 const OPS = {"+":true , "-":true , "*":true, "/":true, ":":true}
@@ -40,6 +41,7 @@ const TYPE_INTEGER_CONSTANT = "t_integer_constant"
 const TYPE_FLOAT_CONSTANT = "t_float_constant"
 const TYPE_REFERENCE = "t_reference"
 const TYPE_UNARY_OPS = "t_unary_ops"
+const TYPE_RESERVED_VARIABLE = "t_reserved_variable"
 
 function swap(obj){
   var ret = {};
@@ -128,6 +130,7 @@ module.exports = {
                     TYPE_FLOAT_CONSTANT,
                     TYPE_REFERENCE,
                     TYPE_UNARY_OPS,
+                    TYPE_RESERVED_VARIABLE,
                     CATEGORY_ROOT,
                     CATEGORY_EXPRESSION,
                     CATEGORY_TERM,

@@ -20,7 +20,8 @@ const {
         TYPE_STR_CONSTANT,
         TYPE_INTEGER_CONSTANT,
         TYPE_FLOAT_CONSTANT,
-        TYPE_REFERENCE
+        TYPE_REFERENCE,
+        TYPE_RESERVED_VARIABLE,
 } = require("./lexical")
 
 const INTEGER_PATTERN = /^[0-9]+$/
@@ -55,7 +56,20 @@ class Tokenizer {
             }
             else if (c in SYMBOLS_ALL){
                 let token = c
-                if (token == '$'){
+                if (token == '%'){
+                    debugger
+                    p_cur+=1
+                    p_start = p_cur
+                    while (p_cur < length && expStr[p_cur] != ' ' && !(expStr[p_cur] in SYMBOLS_ALL)){
+                        p_cur += 1
+                    }
+                    const token = expStr.slice(p_start, p_cur)
+                    p_cur -= 1
+                    tokens.push([token, TYPE_RESERVED_VARIABLE])
+                    //console.info(token)
+                    //debugger
+                }
+                else if (token == '$'){
                     p_start = p_cur
                     p_cur+=1
                     if (expStr[p_cur] == '$'){

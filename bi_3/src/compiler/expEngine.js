@@ -15,6 +15,7 @@ const {
         TYPE_FLOAT_CONSTANT,
         TYPE_REFERENCE,
         TYPE_UNARY_OPS,
+        TYPE_RESERVED_VARIABLE,
         CATEGORY_ROOT,
         CATEGORY_EXPRESSION,
         CATEGORY_TERM,
@@ -232,7 +233,7 @@ class expEngine {
     }
     
     /**
-        stringConstant |  keywordConstant | integerConstant | floatConstant | reference | functionCall | selectorCombo | ’(‘ expression ‘)’ | unaryOp term  | unaryBooleanOp term | ‘[‘ paramList ‘]’ 
+        stringConstant |  keywordConstant | integerConstant | floatConstant | reference | functionCall | selectorCombo | ’(‘ expression ‘)’ | unaryOp term  | unaryBooleanOp term | ‘[‘ paramList ‘]’ | revervedVariable
     */
     compileTerm(parentTree) {
         const tokens = this.tokens
@@ -273,7 +274,7 @@ class expEngine {
             this.compileFuncCall(tree)
         }
         else{
-            this.consume(tree,cur_token,[TYPE_STR_CONSTANT,TYPE_INTEGER_CONSTANT,TYPE_FLOAT_CONSTANT,TYPE_KEYWORD_CONSTANT])
+            this.consume(tree,cur_token,[TYPE_STR_CONSTANT,TYPE_INTEGER_CONSTANT,TYPE_FLOAT_CONSTANT,TYPE_KEYWORD_CONSTANT,TYPE_RESERVED_VARIABLE])
         }
     }
 

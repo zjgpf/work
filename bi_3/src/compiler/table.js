@@ -6,9 +6,10 @@ const Util = require('./util')
 const ExpExecutor = require('./expExecutor')
 class Table {
 
-    constructor(rowsNameVersion, tableName){
+    constructor(rowsNameVersion, tableName, globalCache){
         this.rowsNameVersion = rowsNameVersion
         this.tableName = tableName
+        this.globalCache = globalCache
         this.rowsOfExpCell = []
         this.rowsOfValue = []
         this.refTableInfo = {}
@@ -53,7 +54,7 @@ class Table {
             }
             i++
         }
-        console.info(reverseOrder) 
+        //console.info(reverseOrder) 
         while (reverseOrder.length > 0){
             const v = reverseOrder.pop()
             let [row,col] = Util.refToRowCol(v)
@@ -61,7 +62,7 @@ class Table {
             if (col in rowsOfValue[row]) continue
             else {
                 const cell = rowsOfExpCell[row][col] 
-                const expExecutor = new ExpExecutor(cell.engine,rowsOfValue,row,col)
+                const expExecutor = new ExpExecutor(cell.engine,rowsOfValue,row,col,this.globalCache)
                 const res = expExecutor.exec()
             }
         }

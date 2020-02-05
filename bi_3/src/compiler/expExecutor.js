@@ -2,6 +2,7 @@
 Created by Pengfei Gao on 2020-01-13
 */
 const Function = require('../function/function.js')
+const RESERVED_VARIABLES_MAP = require('./reservedVariablesMap')
 const Util = require('./util.js')
 const {
         OP_PRIORITY,
@@ -21,6 +22,7 @@ const {
         TYPE_FLOAT_CONSTANT,
         TYPE_REFERENCE,
         TYPE_UNARY_OPS,
+        TYPE_RESERVED_VARIABLE,
         CATEGORY_ROOT,
         CATEGORY_EXPRESSION,
         CATEGORY_TERM,
@@ -39,11 +41,12 @@ const {
 
 class ExpExecutor{
 
-    constructor(expEngine,rowsOfValue=[],row=-1,col=null){
+    constructor(expEngine,rowsOfValue=[],row=-1,col=null,globalCache=null){
         this.expEngine = expEngine
         this.rowsOfValue = rowsOfValue
         this.row = row
         this.col = col
+        this.globalCache = globalCache
         this.curIdx = 0
         this.leafNodes = []
         const tree = this.expEngine.tree
@@ -98,6 +101,15 @@ class ExpExecutor{
         }
     }
 
+    execReservedVariable(node){
+        const rvFrontEnd = node.content
+        const rvBackEnd = RESERVED_VARIABLES_MAP[rvFrontEnd]
+        if (!rvBackEnd) throw `reserved variable ${rvFrontEnd} not found`
+        const ret = this.globalCache['reservedVariables'][rvBackEnd]
+        if (!ret) throw `reserved variable ${rvFrontEnd} not found in global cache`
+        return ret
+    }
+
     execParamList(paramListNode){
         const leafNodes = this.leafNodes
         const paramNodesOrigin = paramListNode.children
@@ -140,6 +152,175 @@ class ExpExecutor{
         return ret
     }
 
+    execSelectorCombo(SCNode){
+        const subSCNodes = SCNode.children
+        const tableName = subSCNodes[0].content
+        const lastIdx = subSCNodes.length - 1
+        const selectedColumn = subSCNodes[lastIdx].content
+        if (lastIdx < 5) throw `Invalid SCNode: ${tableName}`
+        let idxs = []
+        const rows = this.globalCache.tables[tableName]
+        const ret = []
+        if (lastIdx == 5){
+            //tableA.{}.colA
+            for ( const row of rows){
+                ret.push(row[selectedColumn])
+            }
+            return ret
+        }
+        else if (lastIdx == 6) {
+            //tableA.{...}.colA
+            idxs = this.execSelectorsSingle(subSCNodes[3])
+        }
+        else{
+            //todo: tableA.{...}.{...}.colA
+            idxs = this.execSelectorsMulti()
+        }
+        //console.info(selectedColumn)
+        //console.info(idxs)
+        for (let i of idxs){
+            const row = rows[i]
+            ret.push(row[selectedColumn])
+        }
+        return ret
+    }
+
+    execSelectorsSingle(selectorsNode){
+        //(a>b) and (c>d) and (e=f)
+        const subSelectorsNodes = selectorsNode.children
+        const booleanOps = []
+        const idxsArr = []
+        for (let i = 0; i < subSelectorsNodes.length; i++){
+            const subSelectorsNode = subSelectorsNodes[i]
+            if (i%2 == 1) {
+                if (subSelectorsNode.type != TYPE_BOOLEAN_OPS){
+                    throw `Unexpected token type when exec selectors, expected ${TYPE_BOOLEAN_OPS}, actual ${subSelectorsNode.type}`
+                }
+                booleanOps.push(subSelectorsNode.content)
+            }
+            else {
+                const idxs = this.execSelectorTerm(subSelectorsNode)
+                idxsArr.push(idxs)
+            }
+        }
+        let ret = []
+        //console.info(idxsArr)
+        //debugger
+        if (booleanOps.length == 0){
+            ret = idxsArr[0]
+        }
+        else{
+            for (const booleanOp of booleanOps){
+                const leftIdxs = idxsArr.shift()
+                const rightIdxs = idxsArr.shift()
+                if (booleanOp == 'and'){
+                    const arr = this.arrAndOp(leftIdxs,rightIdxs)
+                    //console.info(arr)
+                    //debugger
+                    idxsArr.unshift(arr)
+                }
+                else if (booleanOp == 'or'){
+                    const arr = this.arrOrOp(leftIdxs,rightIdxs)
+                    idxsArr.unshift(arr)
+                }
+                else {
+                    throw `Unexpected op in selectors, when do the execution, expected: and, or, acutal ${booleanOp}`
+                }
+                //console.info(idxsArr)
+                //debugger
+            }
+            ret = idxsArr[0]
+        }
+        return ret
+    }
+
+    arrAndOp(arrA,arrB){
+        const valueSet = new Set()
+        const ret = []
+        for (const v of arrA) valueSet.add(v)
+        for (const v of arrB){
+            if (valueSet.has(v)) ret.push(v)
+        }
+        return ret
+    }
+
+    arrOrOp(arrA,arrB){
+        const valueSet = new Set()
+        for (const v of arrA) valueSet.add(v)
+        for (const v of arrB) valueSet.add(v)
+        return [...valueSet]
+    }
+
+    execSelectorTerm(selectorTermNode){
+        let idxs = []
+        const subSelectorTermNodes = selectorTermNode.children
+        if (subSelectorTermNodes.length == 1){
+            idxs = this.execSelector(subSelectorTermNodes[0])
+        }
+        else if (subSelectorTermNodes.length == 3){
+            if (
+                    subSelectorTermNodes[0].type != TYPE_SYMBOLS || subSelectorTermNodes[0].content != '(' ||
+                    subSelectorTermNodes[2].type != TYPE_SYMBOLS || subSelectorTermNodes[2].content != ')'
+                )
+            {
+                throw `Unexpected selectors term`
+            }
+            idxs = this.execSelectorsSingle(subSelectorTermNodes[1])
+        }
+        else {
+            throw `Unexpected selectTerm length, expected 1 or 3, actual ${subSelectorTermNodes.length}`
+        }
+        return idxs
+    }
+
+    execSelector(selectorNode){
+        if (selectorNode.children.length != 3){
+            throw `Unexpected selector node length, expected: 3, actual ${selectorNode.length}`
+        }
+        const [colNameNode, opNode, expNode] = selectorNode.children 
+        if (colNameNode.category != CATEGORY_COLUMNNAME ) throw `Unexpected colName node when call execSelector`
+        if (opNode.type != TYPE_COMPARE_OPS ) throw `Unexpected op node when call execSelector`
+        if (expNode.category != CATEGORY_EXPRESSION ) throw `Unexpected exp node when call execSelector`
+        const table = this.globalCache.tables[colNameNode.note]
+        const expRes = this.execExp(expNode)
+        const colName = colNameNode.content
+        const op = opNode.content
+        let pattern = null
+        const lastIdx = expRes.length-1
+        if (op == '=' && expRes && (expRes[0] == '*' || expRes[lastIdx] == '*')){
+            if (expRes[0] == '*' && expRes[lastIdx] == '*') pattern = new RegExp(expRes.slice(1,lastIdx))
+            else if (expRes[0] == '*'){
+                pattern = new RegExp(expRes.slice(1)+'$')
+            }
+            else{
+                pattern = new RegExp('^'+expRes.slice(0,lastIdx))
+            }
+        }
+        const idxs = []
+        for (let i=0; i<table.length; i++){
+            const row = table[i]
+            if (op == '='){
+                if (pattern && pattern.test(row[colName])) idxs.push(i)
+                else if (row[colName] == expRes) idxs.push(i)
+            }
+            else if (op == '>'){
+                if (row[colName] > expRes) idxs.push(i)
+            }
+            else if (op == '>='){
+                if (row[colName] >= expRes) idxs.push(i)
+            }
+            else if (op == '<'){
+                if (row[colName] < expRes) idxs.push(i)
+            }
+            else if (op == '<='){
+                if (row[colName] <= expRes) idxs.push(i)
+            }
+        }
+        //console.info(idxs)
+        //debugger
+        return idxs
+    }
+   
     execExp(expNode){
         const startIdx = expNode.startIdx
         const endIdx = expNode.endIdx
@@ -166,11 +347,13 @@ class ExpExecutor{
                 this.curIdx+=1
             }
             else if (leafNode.category == CATEGORY_FUNCTIONNAME){
-                const res = this.execFuncCall(leafNodes[this.curIdx].parent)
+                const res = this.execFuncCall(leafNode.parent)
                 queue.push([res,'t_func'])
             }
             else if (leafNode.category == CATEGORY_TABLENAME){
-
+                const res = this.execSelectorCombo(leafNode.parent)
+                queue.push([res,'t_sc'])
+                this.curIdx = leafNode.parent.endIdx+1
             }
             else if (leafNode.type == TYPE_REFERENCE){
                 const rowsOfValue = this.rowsOfValue
@@ -180,6 +363,11 @@ class ExpExecutor{
                 queue.push([res,TYPE_REFERENCE])
                 this.curIdx+=1
                 //to do look ahead ':'
+            }
+            else if (leafNode.type == TYPE_RESERVED_VARIABLE){
+                const res = this.execReservedVariable(leafNode)
+                queue.push([res,TYPE_RESERVED_VARIABLE])
+                this.curIdx+=1
             }
             else if (leafNode.type in TYPE_CONSTANT_ALL ){
                 if (leafNode.type == TYPE_INTEGER_CONSTANT || leafNode.type == TYPE_FLOAT_CONSTANT){
